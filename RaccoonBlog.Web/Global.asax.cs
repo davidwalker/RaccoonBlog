@@ -1,6 +1,8 @@
 using System;
+using System.Configuration;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Web;
 using System.Web.Mvc;
 using System.Web.Routing;
@@ -24,6 +26,8 @@ namespace RaccoonBlog.Web
 	{
 		public MvcApplication()
 		{
+			OverwriteConnectionStringsWithAppSettings();
+
 			BeginRequest += (sender, args) =>
 			                	{
 			                		HttpContext.Current.Items["CurrentRequestRavenSession"] = RavenController.DocumentStore.OpenSession();
@@ -43,6 +47,19 @@ namespace RaccoonBlog.Web
 								TaskExecutor.StartExecuting();
 			              	};
 		}
+
+		private static void OverwriteConnectionStringsWithAppSettings()
+		{
+			foreach (ConnectionStringSettings connstring in ConfigurationManager.ConnectionStrings)
+				if (!string.IsNullOrEmpty(ConfigurationManager.AppSettings[connstring.Name]))
+				{
+					typeof(ConfigurationElement)
+						.GetField("_bReadOnly", BindingFlags.Instance | BindingFlags.NonPublic)
+						.SetValue(connstring, false);
+					connstring.ConnectionString = ConfigurationManager.AppSettings[connstring.Name];
+				}
+		}
+
 
 		public static void RegisterGlobalFilters(GlobalFilterCollection filters)
 		{
